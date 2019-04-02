@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+   
+
+    <title>SIMS</title>
+
+    <!-- Bootstrap core CSS-->
+    <link href="../libraries/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Custom fonts for this template-->
+    <link href="../libraries/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
+
+    <!-- Custom styles for this template-->
+    <link href="../css/sb-admin.css" rel="stylesheet">
+
+    <link href="https://cdn.datatables.net/1.10.19/css/jquery.dataTables.min.css">
+    
+    <script   src="https://code.jquery.com/jquery-3.3.1.js"integrity="sha256-2Kok7MbOyxpgUVvAk/HJ2jigOSYS2auK4Pfzbm7uH60="   crossorigin="anonymous"></script>
+    
+    <!-- Data Tables   --> 
+
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.19/css/jquery.dataTables.css">
+  
+  
+</head>
+
+  <body id="page-top">
+
+
+      <!-- left main Sidebar -->
+
+    <div id="wrapper">
+
+
+
+      <ul class="sidebar navbar-nav">
+
+        <li style="margin-botton:80px;" class="nav-item active ">
+          <a class="navbar-brand mr-1"style="color: black; margin-botton:80px;" id="sidebarToggle" href="#">SIMS</a>
+        </li>
+
+        <li class="nav-item active">
+          <a class="nav-link" href="../index.html">
+            <i class="fas fa-fw fa-tachometer-alt"></i>
+            <span>DASHBOARD</span>
+          </a>
+        </li>
+          
+        <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="pagesDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                <i class="fas fa-list-alt"></i>
+              <span>INVENTORY</span>
+            </a>
+            <div style="background:#F3BB44;" class="dropdown-menu" aria-labelledby="pagesDropdown">
+              <h6 class="dropdown-header">Where To:</h6>
+             
+              <a class="dropdown-item" href="adminAssets.html"> Assets In Stock</a>
+              <a class="dropdown-item" href="adminAssetsTaken.html"> Assets Taken</a>
+              <a class="dropdown-item" href="users.html">Users</a>
+              
+            </div>
+          </li>
+
+        
+              
+        <li class="nav-item active">
+          <a class="nav-link" href="../login.html">
+            <i class="fas fa-power-off"></i>
+            <span>LOG OUT</span>
+          </a>
+        </li>    
+        
+      </ul> 
+
+      <div id="content-wrapper">
+
+        <div class="container-fluid">
+
+          <!-- Breadcrumbs-->
+          <ol class="breadcrumb">
+              <li class="breadcrumb-item">
+                <a style="color: black; font-size:25px " href="adminAssets.html">Assets In Stock </a>
+              </li>
+            </ol> 
+
+
+<style>
+
+h2{
+    text-align: center
+}
+
+</style>
+
+
+
+<script>
+
+  var socket;
+  var stats;
+
+  function setupSocket(message) {
+
+    socket = new WebSocket('ws://127.0.0.1:8887');
+
+    socket.onopen = function () {
+
+        //document.getElementById("received").innerHTML = "connect";
+        console.log("opened socket " + socket);
+        
+     
+        socket.send(message);
+
+    };
+
+    // Log errors
+    socket.onerror = function (error) {
+        console.error('WebSocket Error ' + error);
+    };
+
+    // Log messages from the server
+    socket.onmessage = function (e) {
+      //alert(e.data);
+
+      if (message == "GETALLITEMS")
+        setupTable(e.data);
+
+        socket.close();
+    };
+
+    socket.onclose = function(evnt){
+        //console.error(evnt.code);
+    };
+
+    window.addEventListener('beforeunload', function() {
+            socket.close();
+    });
+
+  }
+
+  setupSocket("GETALLITEMS");
+
+  function setupTable(message) {
+  var data = message.split(",");
+  
+  var table= $(document).ready(function() {
+
+
+    var t= $('#myTable1').DataTable(); 
+  
+
+  /*
+      this loop will iterate the array and put one row in their
+       corresponding columns as formatted by HTML table. 
+  
+  */
+
+  //var rowcount = 0;
+
+  for (var i = 0; data[i] != null && data[i] != ""; i += 5) {
+    t.row.add([data[i], data[i + 1], data[i + 2], data[i + 3], data[i + 4]]).draw(false);
+    //rowcount++;
+  }
+  
+  //for(row=0; row<data.length; row++) { 
+  //      t.row.add( [
+  //          assets[row].name,
+  //         assets[row].id, assets[row].category, assets[row].room, assets[row].bin] ).draw( false ); 
+  //}  
+ 
+// delete row from table
+
+var ids;
+
+$('#myTable1').on('click', 'tr', function () {
+        // select it if unselected
+        // and diselect if selected. 
+
+      
+        $(this).toggleClass('selected');
+
+
+        ids = $.map(t.rows('.selected').data(), function (item) {
+            return item[1]
+        });
+
+        alert("RES,10291231," + ids);
+
+        setupSocket("RES,10291231," + ids);
+
+        //console.log(ids)
+
+    });
+
+
+// delete row 
+
+
+$('#button').click(function () {
+
+      
+          
+            setupSocket("REM," + ids);
+          
+   // alert("Item successfully deleted.");
+    t.row('.selected').remove().draw( false );
+
+
+    } );
+
+// category To Search
+
+  $("#myTable1 thead th").each( function ( i ) {
+    
+    var category= 2; 
+
+    if ($(this).text() !== '') {
+          var isStatusColumn = (($(this).text() == 'Status') ? true : false);
+      var select = $('<select><option value=""></option></select>')
+              .appendTo( $("#categoryToSearch").empty() )
+              .on( 'change', function () {
+                  var val = $(this).val();
+          
+                  t.column( category )
+                      .search( val ? '^'+$(this).val()+'$' : val, true, false )
+                      .draw();
+              } );
+      
+      // Get the Status values a specific way since the status is a anchor/image
+      if (isStatusColumn) {
+        var statusItems = [];
+        
+                /* ### IS THERE A BETTER/SIMPLER WAY TO GET A UNIQUE ARRAY OF <TD> data-filter ATTRIBUTES? ### */
+                  t.column( category ).nodes().to$().each( function(d, j){
+          var thisStatus = $(j).attr("data-filter");
+          if($.inArray(thisStatus, statusItems) === -1) statusItems.push(thisStatus);
+        } );
+        
+        statusItems.sort();
+                
+        $.each( statusItems, function(i, item){
+            select.append( '<option value="'+item+'">'+item+'</option>' );
+        });
+
+      }
+            // All other non-Status columns (like the example)
+      else {
+        t.column( category ).data().unique().sort().each( function ( d, j ) {  
+          select.append( '<option value="'+d+'">'+d+'</option>' );
+            } );  
+      }
+          
+    }
+    } );
+  
+} );
+
+}
+
+/* load local JSON file*/
+
+ 	var	assets; // to save the json file 
+function loadFile() {
+		var input, file, fr; 
+    
+
+		if (typeof window.FileReader !== 'function') {
+			alert("The file API isn't supported on this browser yet.");
+			return;
+		}
+
+		input = document.getElementById('fileinput');
+		if (!input) {
+			alert("Um, couldn't find the fileinput element.");
+		}
+		else if (!input.files) {
+			alert("This browser doesn't seem to support the `files` property of file inputs.");
+		}
+		else if (!input.files[0]) {
+			alert("Please select a file before clicking 'Load'");
+		}
+		else {
+			file = input.files[0]; 
+			fr = new FileReader();
+			fr.onload = receivedText;
+			fr.readAsText(file);
+      alert("File Loaded Successfully.")
+
+		}
+
+
+    // gets the json file and parse it 
+
+		function receivedText(e) {
+			let lines = e.target.result;
+		  assets = JSON.parse(lines); 
+    
+console.log(assets);
+    // load the table after the data has been imported 
+loadTable(assets); 
+// to download the csv file
+
+		}
+  
+
+	}// loadFile()
+
+/* this function will load the table*/
+
+function loadTable(assets) {
+
+var table= $(document).ready(function() {
+
+
+    var t= $('#myTable1').DataTable(); 
+  
+        
+
+  /*
+      this loop will iterate the array and put one row in their
+       corresponding columns as formatted by HTML table. 
+  
+  */
+  
+  for(row=0; row<assets.length; row++) { 
+        t.row.add( [
+            assets[row].name,
+           assets[row].id,
+           assets[row].category,
+            assets[row].room,
+            assets[row].bin
+        ] ).draw( false ); 
+  }  
+ 
+// delete row from table
+
+
+
+
+
+
+$('#myTable1').on('click', 'tr', function () {
+        // select it if unselected
+        // and diselect if selected. 
+
+      
+        $(this).toggleClass('selected');
+
+
+        var ids = $.map(t.rows('.selected').data(), function (item) {
+            return item[1]
+        });
+        console.log(ids)
+
+        $('#button').click(function () {
+		t.row('.selected').remove().draw( false );
+    //alert("Item successfully deleted.");
+
+
+    } );
+
+
+
+
+    });
+
+
+// delete row 
+
+
+
+
+// category To Search
+
+  $("#myTable1 thead th").each( function ( i ) {
+		
+    var category= 2; 
+
+		if ($(this).text() !== '') {
+	        var isStatusColumn = (($(this).text() == 'Status') ? true : false);
+			var select = $('<select><option value=""></option></select>')
+	            .appendTo( $("#categoryToSearch").empty() )
+	            .on( 'change', function () {
+	                var val = $(this).val();
+					
+	                t.column( category )
+	                    .search( val ? '^'+$(this).val()+'$' : val, true, false )
+	                    .draw();
+	            } );
+	 		
+			// Get the Status values a specific way since the status is a anchor/image
+			if (isStatusColumn) {
+				var statusItems = [];
+				
+                /* ### IS THERE A BETTER/SIMPLER WAY TO GET A UNIQUE ARRAY OF <TD> data-filter ATTRIBUTES? ### */
+                  t.column( category ).nodes().to$().each( function(d, j){
+					var thisStatus = $(j).attr("data-filter");
+					if($.inArray(thisStatus, statusItems) === -1) statusItems.push(thisStatus);
+				} );
+				
+				statusItems.sort();
+								
+				$.each( statusItems, function(i, item){
+				    select.append( '<option value="'+item+'">'+item+'</option>' );
+				});
+
+			}
+            // All other non-Status columns (like the example)
+			else {
+				t.column( category ).data().unique().sort().each( function ( d, j ) {  
+					select.append( '<option value="'+d+'">'+d+'</option>' );
+		        } );	
+			}
+	        
+		}
+    } );
+  
+} ); // ready table 
+
+}
+
+function newAsset() {
+  
+  // get values from the form
+  var userName= document.getElementById("name").value; 
+  
+    var assetID= document.getElementById("ID").value; 
+  
+  var assetCategory= document.getElementById("category").value; 
+   
+    var room= document.getElementById("room").value; 
+    
+    var binNumber= document.getElementById("bin").value; 
+    
+    // JSON format to add new entry to the assets file 
+  var newAssetToTable=  {"name":userName,
+    "id":assetID,
+    "category": assetCategory,
+    "room": room,
+    "bin": binNumber };
+  
+  // add the new row to the table 
+    assets.push(newAssetToTable);  
+  
+  var table= $(document).ready(function() {
+      var t = $('#myTable1').DataTable();
+  
+    /*
+        we add a new row (new asset) to the datable
+    
+    */
+          t.row.add( [
+              assets[row].name,
+             assets[row].id,
+             assets[row].category,
+              assets[row].room,
+              assets[row].bin
+          ] ).draw( false ); 
+      
+  } ); // table 
+  
+  }
+  
+
+// download data to local machine
+function download_json(data) {
+    let dataStr = JSON.stringify(data);
+    let dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    let exportFileDefaultName = 'data.json';
+    
+    console.log(dataStr);
+    let hiddenElement = document.createElement('a');
+    hiddenElement.setAttribute('href', dataUri);
+    hiddenElement.setAttribute('download', exportFileDefaultName);
+    document.getElementById('container').appendChild(hiddenElement);
+    hiddenElement.click();
+}
+
+function parseJSONToCSVStr(assets) {
+  assets= JSON.stringify(assets);
+    var csvStr = Papa.unparse(assets);
+    console.log(csvStr);
+
+    var hiddenElement = document.createElement('a');
+    hiddenElement.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvStr);
+    hiddenElement.target = '_blank';
+    hiddenElement.download = 'data.csv';
+    document.getElementById('container').appendChild(hiddenElement);
+    hiddenElement.click();
+}
+  
+</script>
+
+
+<div class="row"> 
+
+  <div class="row"> 
+
+   <!--LOAD JSON FILE-->
+   
+   <form id="jsonFile" name="jsonFile" enctype="multipart/form-data" method="post">
+   
+     <fieldset>
+     
+      <button type="button" style="margin-left: 30px" class="btn btn-primary" data-toggle="modal" data-target="#addAssetForm" >Add Asset</button>
+
+         <div  class="btn btn-primary" >  <input  type='File' id='fileinput'> </div> 
+        
+        <input type='button' class="btn btn-primary" id='btnLoad' value='Load' onclick='loadFile();'>
+      
+     </fieldset>
+     
+     
+   </form>
+   
+   <!-- download file from server -->
+   <div style="margin-left: 5px"  class="row" > 
+
+     <h5> Search By Category:  </h5>
+     <div id="categoryToSearch"> </div>
+   </div>
+   
+   </div>
+
+
+
+
+
+
+</div> <!-- /.content-wrapper -->
+<!--ADMIN WILL SEE USER INFORMATION -->
+
+<button class="btn btn-primary" onclick="parseJSONToCSVStr(assets)">Download CSV</button>
+<div id="container" style="display:none;"></div>
+
+<button  id="button"style="background: red;  margin-left:0px; margin-top:5px" class="btn btn-primary"> Delete Row</button>
+
+ <table   id="myTable1" class="display" style="width:100%; margin-top: 20px;" >
+
+   <thead style="background: #121212; color:white">
+       <tr>
+           <th>Name:</th>
+           <th>Id:</th>
+           <th>Category:</th>
+           <th>Room:</th>
+           <th>Bin:</th>
+       </tr>
+   </thead>
+ 
+<tbody>  
+
+
+</tbody>
+
+ 
+
+<br>
+
+</table>
+<br>
+
+<br>
+
+<div  id= "addAssetForm" class="modal fade"  tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="exampleModalLabel">Add </h5>
+          <button class="close" type="button" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">×</span>
+          </button>
+        </div>
+       
+        <div class="modal-body">
+            <form>
+                <div class="form-group">
+                  <label for="formGroupExampleInput">Name:</label>
+                  <input type="text" class="form-control"  id="name" placeholder="">
+
+                </div>
+  
+                <div class="form-group">
+                  <label for="formGroupExampleInput">Id:</label>
+                  <input type="text" class="form-control"  id="ID" placeholder="">
+                  
+                </div>
+                <div class="form-group">
+                  <label for="formGroupExampleInput">Category:</label>
+                  <input type="text" class="form-control"  id="category" placeholder="">
+                  
+                </div>
+                <div class="form-group">
+                  <label for="formGroupExampleInput">Room:</label>
+                  <input type="text" class="form-control"  id="room" placeholder="">
+                  
+                </div>
+                <div class="form-group">
+                  <label for="formGroupExampleInput">Bin:</label>
+                  <input type="text" class="form-control"  id="bin" placeholder="">
+                  
+                </div>
+              </form>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary" data-dismiss="modal"  onclick="newAsset()">Add</butto>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<!-- ADD NEW ASSET TO THE HASHGRAPH-->
+
+
+
+
+        <!-- Sticky Footer -->
+        <footer class="sticky-footer">
+          <div class="container my-auto">
+            <div class="copyright text-center my-auto">
+              <span>University of Massachusetts Dartmouth SIMS 2018</span>
+            </div>
+          </div>
+        </footer>
+
+      </div>
+      
+      <!-- /.content-wrapper -->
+
+    </div>
+    <!-- /#wrapper -->
+
+    <!-- Scroll to Top Button-->
+    <a class="scroll-to-top rounded" href="#page-top">
+      <i class="fas fa-angle-up"></i>
+    </a>
+
+    <!-- Logout Modal-->
+    <div class="modal fade" id="logoutModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="exampleModalLabel">Ready to Leave?</h5>
+            <button class="close" type="button" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">×</span>
+            </button>
+          </div>
+          <div class="modal-body">Select "Logout" below if you are ready to end your current session.</div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancel</button>
+            <a class="btn btn-primary" href="../login.html">Logout</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bootstrap core JavaScript-->
+   
+    <script src="../libraries/bootstrap/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Core plugin JavaScript-->
+    <script src="../libraries/jquery-easing/jquery.easing.min.js"></script>
+
+    <script src="jsonToCsv.js"></script>
+    <!-- Custom scripts for all pages-->
+    <script src="../js/sb-admin.min.js"></script>
+
+
+    <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.10.19/js/jquery.dataTables.js"></script>
+    
+    <script src="https://code.jquery.com/jquery-3.3.1.js"></script>
+    <script src="https://cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js"> </script>
+
+  </body>
+
+</html>
